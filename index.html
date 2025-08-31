@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Konsep Rata-Rata Interaktif</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .container {
+            min-height: 350px;
+            width: 80px;
+            display: flex;
+            flex-direction: column-reverse;
+            align-items: center;
+            border: 2px solid #9CA3AF;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            position: relative;
+            background-color: #F3F4F6;
+            transition: background-color 0.3s;
+        }
+        .container.drag-over {
+            background-color: #A5B4FC;
+            border-color: #4338CA;
+        }
+        .block {
+            width: 60px;
+            height: 30px;
+            border-radius: 0.375rem;
+            margin-top: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s ease-in-out;
+            user-select: none;
+        }
+        .block.draggable {
+            cursor: grab;
+        }
+        .block.dragging {
+            opacity: 0.5;
+            transform: scale(1.1);
+        }
+        .block-count {
+            position: absolute;
+            top: -35px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1F2937;
+        }
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            color: #4B5563;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        .tab-button.active {
+            color: #3B82F6;
+            border-bottom-color: #3B82F6;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        <div class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-600">Simulasi Rata-Rata Interaktif</h1>
+            <p class="text-gray-600 mt-2">Pilih mode untuk belajar konsep rata-rata!</p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="flex justify-center border-b mb-6">
+            <button id="tab-simulasi" class="tab-button active">Simulasi Otomatis</button>
+            <button id="tab-latihan" class="tab-button">Latihan Mandiri</button>
+        </div>
+
+        <!-- Visualisasi -->
+        <div id="visualization" class="flex justify-center items-end gap-4 mb-8 min-h-[400px]">
+            <!-- Kontainer balok akan dibuat oleh JavaScript -->
+        </div>
+
+        <!-- Konten Simulasi Otomatis -->
+        <div id="content-simulasi">
+            <div id="explanation" class="text-center p-4 bg-blue-50 rounded-lg border border-blue-200 mb-6">
+                 <p class="text-lg text-gray-700">Rata-rata adalah hasil jika semua balok ini kita bagi sama rata.</p>
+            </div>
+            <div id="calculation" class="text-center p-4 bg-green-50 rounded-lg border border-green-200 mb-6 hidden"></div>
+            <div class="flex justify-center gap-4">
+                <button id="levelButton" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-blue-700 transition-transform transform hover:scale-105">Tunjukkan Rata-rata</button>
+            </div>
+        </div>
+
+        <!-- Konten Latihan Mandiri -->
+        <div id="content-latihan" class="hidden">
+            <div class="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200 mb-6">
+                 <p class="text-lg text-gray-700">Pindahkan balok dari tumpukan tinggi ke tumpukan rendah sampai semua sama rata!</p>
+            </div>
+            <div class="flex flex-col md:flex-row justify-center items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <label for="timerInput" class="font-semibold text-gray-700">Atur Waktu (detik):</label>
+                    <input type="number" id="timerInput" value="60" min="10" max="300" class="w-24 p-2 border border-gray-300 rounded-lg text-center">
+                </div>
+                <button id="startGameButton" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-green-700 transition-transform transform hover:scale-105">Mulai Latihan!</button>
+                <div id="timerDisplay" class="text-2xl font-bold text-red-600 w-28 text-center"></div>
+            </div>
+        </div>
+
+        <!-- Tombol Reset Umum -->
+         <div class="mt-8 border-t pt-6 flex justify-center">
+             <button id="resetButton" class="bg-gray-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-gray-600 transition-transform transform hover:scale-105">Buat Soal Baru</button>
+         </div>
+    </div>
+    
+    <!-- Modal Umpan Balik -->
+    <div id="feedbackModal" class="modal-overlay hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm transform transition-all scale-95 opacity-0" id="modalContent">
+            <h2 id="modalTitle" class="text-4xl font-extrabold mb-4"></h2>
+            <p id="modalMessage" class="text-gray-600 mb-8 text-lg"></p>
+            <button id="closeModalButton" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-blue-700 transition-transform transform hover:scale-105">Tutup</button>
+        </div>
+    </div>
+
+
+    <script>
+        // Elemen DOM
+        const visualizationDiv = document.getElementById('visualization');
+        const resetButton = document.getElementById('resetButton');
+        // Tab
+        const tabSimulasi = document.getElementById('tab-simulasi');
+        const tabLatihan = document.getElementById('tab-latihan');
+        const contentSimulasi = document.getElementById('content-simulasi');
+        const contentLatihan = document.getElementById('content-latihan');
+        // Mode Simulasi
+        const levelButton = document.getElementById('levelButton');
+        const calculationDiv = document.getElementById('calculation');
+        // Mode Latihan
+        const startGameButton = document.getElementById('startGameButton');
+        const timerInput = document.getElementById('timerInput');
+        const timerDisplay = document.getElementById('timerDisplay');
+        // Modal
+        const feedbackModal = document.getElementById('feedbackModal');
+        const modalContent = document.getElementById('modalContent');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMessage = document.getElementById('modalMessage');
+        const closeModalButton = document.getElementById('closeModalButton');
+
+        // State
+        let currentNumbers = [];
+        let average = 0;
+        let gameActive = false;
+        let timerInterval;
+        const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+
+        // --- Fungsi Utama ---
+
+        function generateValidNumbers() {
+            const count = Math.floor(Math.random() * 3) + 3; // 3 sampai 5 kelompok
+            let numbers;
+            let sum;
+            let attempts = 0;
+            do {
+                numbers = Array.from({ length: count }, () => Math.floor(Math.random() * 8) + 2);
+                sum = numbers.reduce((a, b) => a + b, 0);
+                attempts++;
+                if (attempts > 50) return [4, 6, 8]; // Failsafe
+            } while (sum % count !== 0);
+            
+            average = sum / count;
+            return numbers;
+        }
+
+        function createSimulation(numbers) {
+            currentNumbers = [...numbers];
+            visualizationDiv.innerHTML = '';
+            stopGame();
+            
+            currentNumbers.forEach((num, index) => {
+                const container = document.createElement('div');
+                container.className = 'container';
+                container.dataset.index = index;
+                visualizationDiv.appendChild(container);
+                redrawStack(index);
+            });
+            
+            resetUIState();
+        }
+
+        function redrawStack(index) {
+            const container = visualizationDiv.querySelector(`.container[data-index='${index}']`);
+            if (!container) return;
+            container.innerHTML = '';
+
+            const num = currentNumbers[index];
+            
+            const countLabel = document.createElement('div');
+            countLabel.className = 'block-count';
+            countLabel.textContent = num;
+            container.appendChild(countLabel);
+
+            for (let i = 0; i < num; i++) {
+                const block = document.createElement('div');
+                block.className = 'block';
+                block.style.backgroundColor = colors[index % colors.length];
+                container.appendChild(block);
+            }
+            
+            // Jadikan balok teratas dapat di-drag jika game aktif
+            if (gameActive && num > 0) {
+                 const topBlock = container.lastElementChild;
+                 if (topBlock) {
+                    topBlock.classList.add('draggable');
+                    topBlock.draggable = true;
+                 }
+            }
+        }
+
+        function resetUIState() {
+            calculationDiv.classList.add('hidden');
+            levelButton.disabled = false;
+            levelButton.classList.remove('opacity-50');
+            startGameButton.disabled = false;
+            startGameButton.classList.remove('opacity-50');
+            timerInput.disabled = false;
+        }
+
+        // --- Logika Pergantian Tab ---
+        tabSimulasi.addEventListener('click', () => switchTab('simulasi'));
+        tabLatihan.addEventListener('click', () => switchTab('latihan'));
+
+        function switchTab(tabName) {
+            stopGame();
+            if (tabName === 'simulasi') {
+                tabSimulasi.classList.add('active');
+                tabLatihan.classList.remove('active');
+                contentSimulasi.classList.remove('hidden');
+                contentLatihan.classList.add('hidden');
+            } else {
+                tabLatihan.classList.add('active');
+                tabSimulasi.classList.remove('active');
+                contentLatihan.classList.remove('hidden');
+                contentSimulasi.classList.add('hidden');
+            }
+        }
+
+        // --- Logika Mode Simulasi ---
+        levelButton.addEventListener('click', () => {
+            const sum = currentNumbers.reduce((a, b) => a + b, 0);
+            let sumString = currentNumbers.join(' + ');
+            
+            calculationDiv.innerHTML = `
+                <p class="text-lg font-medium text-gray-800">Jumlahkan: ${sumString} = ${sum}</p>
+                <p class="text-lg font-medium text-gray-800 mt-2">Bagi: ${sum} ÷ ${currentNumbers.length} = ${average}</p>
+                <p class="text-xl font-semibold text-blue-800 mt-4">Jadi, rata-ratanya adalah ${average}</p>`;
+            calculationDiv.classList.remove('hidden');
+            levelButton.disabled = true;
+            levelButton.classList.add('opacity-50');
+
+            currentNumbers.fill(average);
+            currentNumbers.forEach((_, index) => redrawStack(index));
+        });
+
+        // --- Logika Mode Latihan ---
+        startGameButton.addEventListener('click', startGame);
+
+        function startGame() {
+            gameActive = true;
+            startGameButton.disabled = true;
+            startGameButton.classList.add('opacity-50');
+            timerInput.disabled = true;
+            resetButton.disabled = true;
+            resetButton.classList.add('opacity-50');
+
+            currentNumbers.forEach((_, index) => redrawStack(index)); // Aktifkan draggable
+
+            let timeLeft = parseInt(timerInput.value);
+            timerDisplay.textContent = timeLeft;
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    stopGame();
+                    showFeedback('Waktu Habis!', 'Jangan menyerah, coba lagi ya!', 'red');
+                }
+            }, 1000);
+        }
+
+        function stopGame() {
+            clearInterval(timerInterval);
+            gameActive = false;
+            timerDisplay.textContent = '';
+            resetButton.disabled = false;
+            resetButton.classList.remove('opacity-50');
+            // Hapus semua status draggable
+            document.querySelectorAll('.draggable').forEach(el => {
+                el.classList.remove('draggable');
+                el.draggable = false;
+            });
+        }
+
+        function checkWinCondition() {
+            if (currentNumbers.every(num => num === average)) {
+                stopGame();
+                showFeedback('Hebat!', 'Kamu berhasil menemukan rata-ratanya sebelum waktu habis!', 'green');
+            }
+        }
+
+        // --- Logika Drag & Drop ---
+        visualizationDiv.addEventListener('dragstart', e => {
+            if (!e.target.classList.contains('draggable')) return;
+            e.target.classList.add('dragging');
+            const sourceContainer = e.target.closest('.container');
+            e.dataTransfer.setData('text/plain', sourceContainer.dataset.index);
+        });
+
+        visualizationDiv.addEventListener('dragend', e => {
+            if (e.target.classList.contains('block')) {
+                e.target.classList.remove('dragging');
+            }
+        });
+        
+        visualizationDiv.addEventListener('dragover', e => {
+            e.preventDefault();
+            const targetContainer = e.target.closest('.container');
+            if (targetContainer) {
+                targetContainer.classList.add('drag-over');
+            }
+        });
+
+        visualizationDiv.addEventListener('dragleave', e => {
+             const targetContainer = e.target.closest('.container');
+             if (targetContainer) {
+                targetContainer.classList.remove('drag-over');
+             }
+        });
+        
+        visualizationDiv.addEventListener('drop', e => {
+            e.preventDefault();
+            const targetContainer = e.target.closest('.container');
+            if (!targetContainer) return;
+            
+            targetContainer.classList.remove('drag-over');
+            const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'));
+            const targetIndex = parseInt(targetContainer.dataset.index);
+
+            if (sourceIndex !== targetIndex && currentNumbers[sourceIndex] > 0) {
+                currentNumbers[sourceIndex]--;
+                currentNumbers[targetIndex]++;
+                redrawStack(sourceIndex);
+                redrawStack(targetIndex);
+                checkWinCondition();
+            }
+        });
+
+        // --- Logika Modal ---
+        function showFeedback(title, message, color) {
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            if (color === 'green') {
+                modalTitle.className = 'text-4xl font-extrabold mb-4 text-green-500';
+            } else {
+                modalTitle.className = 'text-4xl font-extrabold mb-4 text-red-500';
+            }
+            feedbackModal.classList.remove('hidden');
+            setTimeout(() => {
+                modalContent.classList.add('scale-100', 'opacity-100');
+                modalContent.classList.remove('scale-95', 'opacity-0');
+            }, 10);
+        }
+
+        closeModalButton.addEventListener('click', () => {
+             modalContent.classList.remove('scale-100', 'opacity-100');
+             modalContent.classList.add('scale-95', 'opacity-0');
+             setTimeout(() => feedbackModal.classList.add('hidden'), 300);
+             resetUIState();
+        });
+
+        // --- Inisialisasi ---
+        resetButton.addEventListener('click', () => createSimulation(generateValidNumbers()));
+        createSimulation(generateValidNumbers());
+    </script>
+</body>
+</html>
+
